@@ -39,7 +39,7 @@ BEGIN
 
     -- Invoke Lambda asynchronously using 'Event' invocation type
     PERFORM aws_lambda.invoke(
-        aws_commons.create_lambda_function_arn('arn:aws:lambda:eu-central-1:556369392635:function:embeddings_function_producer'),
+        aws_commons.create_lambda_function_arn('arn:aws:lambda:<aws_region>:<aws_account>:function:embeddings_function_producer'),
         payload::json,
         'Event'  -- This makes it asynchronous
     );

@@ -33,7 +33,7 @@ DECLARE
 BEGIN
     -- Invoke Lambda function synchronously (RequestResponse)
     SELECT payload FROM aws_lambda.invoke(
-        aws_commons.create_lambda_function_arn('arn:aws:lambda:eu-central-1:556369392635:function:embeddings_function_sync'),
+        aws_commons.create_lambda_function_arn('arn:aws:lambda:<aws_region>:<aws_account>:function:embeddings_function_sync'),
         json_build_object('inputText', text_content)::json,
         'RequestResponse'
     ) INTO lambda_response;
