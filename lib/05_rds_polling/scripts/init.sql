@@ -1,5 +1,5 @@
-CREATE SCHEMA IF NOT EXISTS "06_rds_polling";
-SET search_path TO "06_rds_polling", public;
+CREATE SCHEMA IF NOT EXISTS "05_rds_polling";
+SET search_path TO "05_rds_polling", public;
 
 -- Create documents table
 CREATE TABLE IF NOT EXISTS documents (
@@ -142,8 +142,7 @@ WHERE processing_status = 'PENDING';
 
 
 -- Schedule the job to run every 2 minutes
-SELECT cron.schedule('process_embeddings', '*/2 * * * * *', 'SELECT "06_rds_polling".process_embedding_queue()');
-
+-- SELECT cron.schedule('process_embeddings', '*/2 * * * * *', 'SELECT "06_rds_polling".process_embedding_queue()');
 
 -- Example usage:
 -- Just insert documents and they will be processed automatically:

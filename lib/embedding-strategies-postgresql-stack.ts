@@ -117,7 +117,7 @@ export class EmbeddingStrategiesPostgresqlStack extends cdk.Stack {
         'Allow RDS to access Lambda endpoint'
       );
     }
-    this.createBastionHost(this.vpc, bastionSecurityGroup)
+    this.createBastionHost(this.vpc, bastionSecurityGroup, this.cluster.clusterEndpoint)
 
     // ### Create roles to allow Aurora invoke Bedrock and Lambda
     // create a role that allow to invoke bedrock models
@@ -153,7 +153,6 @@ export class EmbeddingStrategiesPostgresqlStack extends cdk.Stack {
       })
     );
 
-    
     new AddRoleToCluster(this, 'AddRoleForBedrockToCluster', {
       cluster: this.cluster,
       role: rdsBedrockRole,
@@ -190,16 +189,34 @@ export class EmbeddingStrategiesPostgresqlStack extends cdk.Stack {
     );
   }
 
-  private createBastionHost(vpc: ec2.Vpc, bastionSecurityGroup: ec2.SecurityGroup) {
+  private createBastionHost(vpc: ec2.Vpc, bastionSecurityGroup: ec2.SecurityGroup, clusterEndpoint: cdk.aws_rds.Endpoint) {
     // First, create the user data script
     const userdata = new Asset(this, 'UserDataAsset', {
       path: path.join(__dirname, './userdata.sh')
     });
-    const init_script = new Asset(this, 'ConnectScript', {
+    const connectScript = new Asset(this, 'ConnectScript', {
       path: path.join(__dirname, './connect.sh')
     });
 
-    const bastionHostRole=new iam.Role(this, 'BastionHostRole', {
+    const solutionSql = require('fs').readdirSync(__dirname, { withFileTypes: true })
+      .filter((item: any) => item.isDirectory())
+      .filter((item: any) => /^\d{2}/.test(item.name))
+      .map((item: any) => {
+        return new Asset(this, `SQLAsset-${item.name}`, {
+          path: path.join(__dirname, `./${item.name}/scripts/init.sql`),
+        });
+      });
+
+    const initSql = new Asset(this, 'SQLAssetInitPublic', {
+      path: path.join(__dirname, './init-public.sql')
+    });
+    const initDb = new Asset(this, 'InitDBScript', {
+      path: path.join(__dirname, './init-db.sh')
+    });
+
+
+
+    const bastionHostRole = new iam.Role(this, 'BastionHostRole', {
       assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
       managedPolicies: [
         iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore')
@@ -213,43 +230,31 @@ export class EmbeddingStrategiesPostgresqlStack extends cdk.Stack {
               actions: ['secretsmanager:GetSecretValue'],
               resources: [
                 this.cluster.secret?.secretArn!
-                ],
+              ],
             })
           ]
         }),
         'S3UserdataAccess': new iam.PolicyDocument({
-          statements: [
-            new iam.PolicyStatement({
+          statements: [userdata, connectScript, initSql, initDb].concat(solutionSql).map(asset => {
+            return new iam.PolicyStatement({
               effect: iam.Effect.ALLOW,
               actions: ['s3:GetObject'],
-              resources: [ cdk.Stack.of(this).formatArn({
+              resources: [cdk.Stack.of(this).formatArn({
                 service: 's3',
                 region: '', // S3 ARNs don't include region
                 account: '', // S3 ARNs don't include account
-                resource: userdata.s3BucketName,
-                resourceName: userdata.s3ObjectKey
+                resource: asset.s3BucketName,
+                resourceName: asset.s3ObjectKey
               })]
-              
               //resources: [userdata.s3ObjectUrl],
-            }),
-            new iam.PolicyStatement({
-              effect: iam.Effect.ALLOW,
-              actions: ['s3:GetObject'],
-              resources: [ cdk.Stack.of(this).formatArn({
-                service: 's3',
-                region: '', // S3 ARNs don't include region
-                account: '', // S3 ARNs don't include account
-                resource: init_script.s3BucketName,
-                resourceName: init_script.s3ObjectKey
-              })]
-            }),
-          ]
+            })
+          })
         })
       }
     })
 
     // Modify the EC2 instance to include the user data
-    const bastion = new ec2.Instance(this, 'BastionHost-1', {
+    const bastion = new ec2.Instance(this, 'BastionHost-', {
       vpc,
       vpcSubnets: {
         subnetType: ec2.SubnetType.PUBLIC,
@@ -272,22 +277,49 @@ export class EmbeddingStrategiesPostgresqlStack extends cdk.Stack {
       role: bastionHostRole
     });
 
+    // Add the cluster endpoint to environment variables
+    bastion.userData.addCommands(
+      'echo "export AURORA_CLUSTER_ENDPOINT=' + clusterEndpoint.hostname + '" >> /etc/environment',
+      'echo "export AURORA_CLUSTER_ENDPOINT=' + clusterEndpoint.hostname + '" >> /home/ec2-user/.bashrc',
+      'echo "export AWS_REGION=' + this.region + '" >> /etc/environment',
+      'echo "export AWS_REGION=' + this.region + '" >> /home/ec2-user/.bashrc'
+    );
     // add ec2 userdata from a local userdata.sh script
     const userdataLocalPath = bastion.userData.addS3DownloadCommand({
       bucket: userdata.bucket,
       bucketKey: userdata.s3ObjectKey,
     });
-    const init_scriptLocalPath = bastion.userData.addS3DownloadCommand({
-      bucket: init_script.bucket,
-      bucketKey: init_script.s3ObjectKey,
+    // Add assets to bastion host
+    bastion.userData.addS3DownloadCommand({
+      bucket: connectScript.bucket,
+      bucketKey: connectScript.s3ObjectKey,
       localFile: '/home/ec2-user/connect.sh',
     })
+
+    solutionSql.forEach((asset: Asset) => {
+      bastion.userData.addS3DownloadCommand({
+        bucket: asset.bucket,
+        bucketKey: asset.s3ObjectKey,
+        localFile: `/home/ec2-user/sql/solutions/${asset.s3ObjectKey}`,
+      })
+    });
+    bastion.userData.addS3DownloadCommand({
+      bucket: initSql.bucket,
+      bucketKey: initSql.s3ObjectKey,
+      localFile: `/home/ec2-user/sql/init-public.sql`,
+    })
+    bastion.userData.addS3DownloadCommand({
+      bucket: initDb.bucket,
+      bucketKey: initDb.s3ObjectKey,
+      localFile: `/home/ec2-user/init-db.sh`,
+    })
+
+
     bastion.userData.addExecuteFileCommand({
       filePath: userdataLocalPath,
       arguments: '--verbose -y',
     });
     bastion.userData.addCommands('echo "Done"');
-    //userdata.grantRead(bastion.role);
 
     // new cfnoutput for localpath
     new cdk.CfnOutput(this, 'localPath', { value: userdataLocalPath });

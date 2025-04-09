@@ -41,10 +41,8 @@ export class RdsLambdaBedrockAsyncStack extends cdk.Stack {
       memorySize: 256,
       bundling: {
         externalModules: [
-          'aws-sdk', // Use AWS SDK v2 from Lambda runtime
           '@aws-sdk/client-bedrock-runtime', // Will be included in bundle
           '@aws-sdk/client-secrets-manager', // Will be included in bundle
-          'pg', // Will be included in bundle
         ],
       },
     });

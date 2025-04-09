@@ -118,7 +118,7 @@ Once you deployed the stack with the `make deploy` command, you can connect to t
     
     * `/home/ec2-user/connect.sh`
 
-    * `./connect.sh <aws_secrets_manager_secret_name> <aurora_endpoint> <aws_region>`
+    * `./connect.sh`
 
     example:
 
@@ -127,14 +127,14 @@ Once you deployed the stack with the `make deploy` command, you can connect to t
     
     chmod +x connect.sh
 
-    ./connect.sh Aurora-credentials embeddingstrategiespostgr-aurorapostgresqlcluster0-sksuyva0u8tw.cluster-c2ann6onnwm7.eu-central-1.rds.amazonaws.com eu-central-1
+    ./connect.sh
     ```
 
 2. (alternative) Retrieve the database password from AWS Secrets Manager:
 
     ```bash
     export PGPASSWORD=$(aws secretsmanager get-secret-value \
-    --secret-id EmbeddingStrategiesPostgres-ksS8hmcRwATS \
+    --secret-id Aurora-credentials \
     --query SecretString \
     --output text \
     --region eu-central-1 | jq '.password')
@@ -151,18 +151,17 @@ Once you deployed the stack with the `make deploy` command, you can connect to t
     --set=sslcert=/usr/local/share/postgresql/global-bundle.pem
     ```
 
-### Run init-public.sql public
-The `lib/init-public.sql` script handles the installation of required PostgreSQL extensions (like pgvector) in the public schema.
-
-### Run one of the scenarios provided
+### Run the scenarios provided
 
 Under the `lib` directory, each solution folder contains SQL scripts that create the necessary database resources as described in the blog post, including:
 * Tables (`documents` and `document_embeddings`) for storing text content and their vector representations
 * Triggers for automated embedding generation
 * Stored procedures for vector operations and embedding management
 
+You can run the script that create the resources for all 5 scenarios along with installing the required extensions:
+`./home/ec2-user/init-db.sh`
 
-Execute your preferred scenario by running one of these SQL scripts to automatically generate embedding vectors using the selected strategy:
+Otherwise, you can run your preferred scenario by executing one of these SQL scripts to automatically generate embedding vectors using the selected strategy:
 * [`lib/01_rds_bedrock/scripts/init.sql`](lib/01_rds_bedrock/scripts/init.sql)
 * [`lib/02_rds_lambda_bedrock_sync/scripts/init.sql`](lib/02_rds_lambda_bedrock_sync/scripts/init.sql)
 * [`lib/03_rds_lambda_bedrock_async/scripts/init.sql`](lib/03_rds_lambda_bedrock_async/scripts/init.sql)

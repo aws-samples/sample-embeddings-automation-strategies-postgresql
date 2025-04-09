@@ -1,15 +1,8 @@
 #!/bin/bash
 
-# Check if required parameters are provided
-if [ $# -ne 3 ]; then
-    echo "Usage: $0 <secret-name> <database-endpoint> <region>"
-    echo "Example: $0 my-db-secret my-cluster.cluster-123456789.region.rds.amazonaws.com us-east-1"
-    exit 1
-fi
-
-SECRET_NAME=$1
-DB_ENDPOINT=$2
-AWS_REGION=$3
+SECRET_NAME=Aurora-credentials
+DB_ENDPOINT=$AURORA_CLUSTER_ENDPOINT
+AWS_REGION=$AWS_REGION
 
 # Fetch credentials from Secrets Manager and parse JSON
 echo "Fetching database credentials from Secrets Manager in region ${AWS_REGION}..."
