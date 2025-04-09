@@ -93,7 +93,7 @@ DECLARE
     processed_count INT := 0;
     error_count INT := 0;
 BEGIN
-    SET search_path TO "06_rds_polling", public;
+    SET search_path TO "05_rds_polling", public;
     FOR doc_record IN
         SELECT id 
         FROM documents
@@ -142,7 +142,7 @@ WHERE processing_status = 'PENDING';
 
 
 -- Schedule the job to run every 2 minutes
--- SELECT cron.schedule('process_embeddings', '*/2 * * * * *', 'SELECT "06_rds_polling".process_embedding_queue()');
+-- SELECT cron.schedule('process_embeddings', '*/2 * * * * *', 'SELECT "05_rds_polling".process_embedding_queue()');
 
 -- Example usage:
 -- Just insert documents and they will be processed automatically:
@@ -156,3 +156,5 @@ WHERE processing_status = 'PENDING';
 
 -- To stop the job:
 -- SELECT cron.unschedule('process_embeddings');
+
+-- SELECT count(*) from document_embeddings;

@@ -254,7 +254,7 @@ export class EmbeddingStrategiesPostgresqlStack extends cdk.Stack {
     })
 
     // Modify the EC2 instance to include the user data
-    const bastion = new ec2.Instance(this, 'BastionHost-', {
+    const bastion = new ec2.Instance(this, 'BastionHost', {
       vpc,
       vpcSubnets: {
         subnetType: ec2.SubnetType.PUBLIC,

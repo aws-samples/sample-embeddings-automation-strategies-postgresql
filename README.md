@@ -169,7 +169,6 @@ Otherwise, you can run your preferred scenario by executing one of these SQL scr
 * [`lib/05_rds_polling/scripts/init.sql`](lib/05_rds_polling/scripts/init.sql)
 
 
-
 ## Security
 
 All database credentials are managed through AWS Secrets Manager

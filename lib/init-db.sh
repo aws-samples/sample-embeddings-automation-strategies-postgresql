@@ -74,6 +74,15 @@ if [ -z "$AWS_REGION" ]; then
     exit 1
 fi
 
+# Get AWS Account ID
+echo "Retrieving AWS Account ID..."
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
+if [ -z "$AWS_ACCOUNT_ID" ]; then
+    echo "Error: Failed to retrieve AWS Account ID"
+    exit 1
+fi
+
+
 # Execute init-public.sql first
 echo "Executing init-public.sql..."
 execute_sql_file "/home/ec2-user/sql/init-public.sql" || {
@@ -85,10 +94,27 @@ execute_sql_file "/home/ec2-user/sql/init-public.sql" || {
 echo "Executing SQL files from solutions directory..."
 # Sort files to ensure consistent execution order
 find /home/ec2-user/sql/solutions -name "*.sql" -type f | sort | while read -r sql_file; do
-    execute_sql_file "$sql_file" || {
+    # Create a temporary file for substitutions
+    temp_file=$(mktemp)
+    
+    # Make a copy of the original SQL file and perform substitutions
+    cp "$sql_file" "$temp_file"
+
+    # Replace the account ID and region tags
+    sed -i \
+        -e "s/<aws_account>/${AWS_ACCOUNT_ID}/g" \
+        -e "s/<aws_region>/${AWS_REGION}/g" \
+        "$temp_file"
+    
+    # Execute the modified SQL file
+    execute_sql_file "$temp_file" || {
         echo "Failed to execute $sql_file"
+        rm -f "$temp_file"  # Clean up temp file on failure
         exit 1
     }
+    
+    # Clean up the temporary file
+    rm -f "$temp_file"
 done
 
 echo "script completed successfully at $(date '+%Y-%m-%d %H:%M:%S')"

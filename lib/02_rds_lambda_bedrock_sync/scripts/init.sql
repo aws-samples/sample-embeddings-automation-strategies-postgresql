@@ -77,5 +77,4 @@ CREATE OR REPLACE TRIGGER trigger_document_embedding
 -- Example usage:
 -- INSERT INTO documents (title, content) VALUES ('Sample Document', 'This is a sample document content.');
 -- SELECT count(*) from document_embeddings;
---
--- SELECT * FROM search_similar_documents('Find similar content', 5);
+
