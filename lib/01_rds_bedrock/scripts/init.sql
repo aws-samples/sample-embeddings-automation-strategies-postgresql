@@ -62,9 +62,11 @@ $$ LANGUAGE plpgsql;
 -- Create trigger for synchronous embedding generation
 -- Note: Use either this OR the async Lambda trigger above, not both
 CREATE TRIGGER trigger_store_embedding
-    AFTER INSERT OR UPDATE OF content ON documents
+    BEFORE INSERT OR UPDATE OF content ON documents
     FOR EACH ROW
+    WHEN (OLD.content IS DISTINCT FROM NEW.content)
     EXECUTE FUNCTION store_embedding();
+
 
 -- Example usage:
 -- INSERT INTO documents (content) VALUES ('This is a test document');

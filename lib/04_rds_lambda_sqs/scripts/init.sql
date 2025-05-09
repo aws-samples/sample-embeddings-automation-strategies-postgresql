@@ -63,9 +63,10 @@ END;
 $$;
 
 -- Create trigger
-CREATE OR REPLACE TRIGGER trigger_async_embedding
-    AFTER INSERT ON documents
+CREATE TRIGGER trigger_async_embedding
+    BEFORE INSERT OR UPDATE OF content ON documents
     FOR EACH ROW
+    WHEN (OLD.content IS DISTINCT FROM NEW.content)
     EXECUTE FUNCTION invoke_embedding_lambda_async();
 
 -- Create function to update embeddings (to be called by Lambda)

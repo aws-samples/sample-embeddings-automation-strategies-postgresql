@@ -69,10 +69,12 @@ END;
 $$;
 
 -- Create trigger
-CREATE OR REPLACE TRIGGER trigger_document_embedding
-    AFTER INSERT ON documents
+CREATE TRIGGER trigger_document_embedding
+    BEFORE INSERT OR UPDATE OF content ON documents
     FOR EACH ROW
+    WHEN (OLD.content IS DISTINCT FROM NEW.content)
     EXECUTE FUNCTION process_document_embedding();
+
 
 -- Example usage:
 -- INSERT INTO documents (title, content) VALUES ('Sample Document', 'This is a sample document content.');
